@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>AR Avatar Archetypes</title>
+    <script src="/js/aframe.min.js"></script>
+    <script src="/js/aframe-ar.js"></script>
+    <script src="/js/aframe-extras.min.js"></script>
+    <style>
+        #voice-btn {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 999;
+            padding: 15px 30px;
+            font-size: 16px;
+            background-color: #ffffff;
+            border: 2px solid #333;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body style="margin: 0; overflow: hidden;">
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;">
+        
+        <a-assets>
+            <a-asset-item id="avatarModel" src="assets/Vesper_avatar.glb"></a-asset-item>
+            <a-asset-item id="archerModel" src="assets/Classes/archer.glb"></a-asset-item>
+            <a-asset-item id="assassinModel" src="assets/Classes/assassin.glb"></a-asset-item>
+            <a-asset-item id="berserkModel" src="assets/Classes/berserk.glb"></a-asset-item>
+            <a-asset-item id="knightModel" src="assets/Classes/knight.glb"></a-asset-item>
+            <a-asset-item id="mageModel" src="assets/Classes/mage.glb"></a-asset-item>
+        </a-assets>
+
+        <a-marker preset="hiro" id="mainMarker">
+            
+            <a-entity id="avatar" 
+                      gltf-model="#avatarModel" 
+                      position="0 0 0" 
+                      scale="0.2 0.2 0.2" 
+                      rotation="-90 0 0"
+                      animation-mixer="clip: Idle; loop: repeat; timeScale: 1">
+            </a-entity>
+
+             <a-entity id="obj-mage" gltf-model="#mageModel" position="0.6 0 0" scale="0.3 0.3 0.3" rotation="-90 0 0" visible="false"></a-entity>
+             <a-entity id="obj-berserk" gltf-model="#berserkModel" position="0.6 0 0" scale="0.3 0.3 0.3" rotation="-90 0 0" visible="false"></a-entity>
+             <a-entity id="obj-assassin" gltf-model="#assassinModel" position="0.6 0 0" scale="0.3 0.3 0.3" rotation="-90 0 0" visible="false"></a-entity>
+            <a-entity id="obj-knight" gltf-model="#knightModel" position="0.6 0 0" scale="0.3 0.3 0.3" rotation="-90 0 0" visible="false"></a-entity>
+            <a-entity id="obj-archer" gltf-model="#archerModel" position="-0.6 0 0" scale="0.3 0.3 0.3" rotation="-90 0 0" visible="false"></a-entity>
+            
+        </a-marker>
+
+        <a-entity camera>
+            <a-entity cursor="fuse: false; rayOrigin: mouse"
+                      raycaster="objects: .clickable"></a-entity>
+        </a-entity>
+    </a-scene>
+    <div style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 999; display: flex; gap: 10px; background: rgba(255,255,255,0.9); padding: 10px; border-radius: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+        <input type="text" id="text-input" placeholder="Напишите: рыцарь, маг..." 
+            style="padding: 10px 15px; border: 1px solid #ccc; border-radius: 20px; font-size: 14px; outline: none; width: 200px;">
+        <button onclick="handleTextInput()" style="padding: 10px 20px; background-color: #4CAF50; color: white; border: none; border-radius: 20px; cursor: pointer; font-size: 14px;">Отправить</button>
+        <button id="voice-btn" onclick="startVoiceRecognition()" style="padding: 10px 20px; background-color: #ffffff; color: #333; border: 2px solid #333; border-radius: 20px; cursor: pointer; font-size: 16px;">🎤</button>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('Сцена и скрипты загружены');
+    });
+
+    const talkingAnimations = [
+        'Talking_normal', 
+        'Pointing'
+    ];
+
+    function getRandomTalkingAnimation() {
+    const randomIndex = Math.floor(Math.random() * talkingAnimations.length);
+    return talkingAnimations[randomIndex];
+}
+
+function playAvatarAnimation(animationName) {
+    const avatar = document.querySelector('#avatar');
+    if (avatar && avatar.components['animation-mixer']) {
+        avatar.setAttribute('animation-mixer', {
+            clip: animationName,
+            loop: 'repeat',
+            timeScale: 1
+        });
+    }
+}
+
+function explainArchetype(archetypeKey, textToSpeak) {
+    document.querySelectorAll('[id^="obj-"]').forEach(el => el.setAttribute('visible', 'false'));
+    
+    const targetObj = document.querySelector(`#obj-${archetypeKey}`);
+    if (targetObj) {
+        targetObj.setAttribute('visible', 'true');
+    }
+
+    const randomTalkAnim = getRandomTalkingAnimation();
+    console.log('Выбрана анимация:', randomTalkAnim);
+    
+    playAvatarAnimation(randomTalkAnim);
+
+    speakText(textToSpeak, () => {
+        playAvatarAnimation('Idle');
+    });
+}
+
+    function speakText(text, callback) {
+        window.speechSynthesis.cancel(); 
+        
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'ru-RU';
+        utterance.rate = 1.0;
+        utterance.onend = function() {
+            if (callback) callback();
+        };
+        window.speechSynthesis.speak(utterance);
+    }
+
+    function startVoiceRecognition() {
+        if (!('webkitSpeechRecognition' in window)) {
+            alert('Ваш браузер не поддерживает Web Speech API. Используйте Google Chrome.');
+            return;
+        }
+
+        const recognition = new webkitSpeechRecognition();
+        recognition.lang = 'ru-RU';
+        recognition.continuous = false;
+        recognition.interimResults = false;
+
+        recognition.onstart = function() {
+            console.log('Слушаю...');
+            playAvatarAnimation('Idle');
+            document.getElementById('voice-btn').innerText = '🔴 Слушаю...';
+        };
+
+        recognition.onresult = function(event) {
+            const transcript = event.results[0][0].transcript.toLowerCase();
+            console.log('Распознано:', transcript);
+            processCommand(transcript);
+            document.getElementById('voice-btn').innerText = '🎤 Задать вопрос';
+        };
+
+        recognition.onerror = function(event) {
+            console.error('Ошибка распознавания:', event.error);
+            document.getElementById('voice-btn').innerText = '🎤 Задать вопрос';
+            
+            if (event.error === 'not-allowed') {
+                alert('Доступ к микрофону запрещен. Нажмите на значок замка/камеры в адресной строке браузера и разрешите доступ к микрофону.');
+            } else if (event.error === 'no-speech') {
+                console.log('Речь не обнаружена.');
+            }
+        };
+
+        recognition.onend = function() {
+            console.log('Сессия распознавания завершена.');
+            document.getElementById('voice-btn').innerText = '🎤 Задать вопрос';
+        };
+
+        try {
+            recognition.start();
+        } catch (e) {
+            console.error('Не удалось запустить распознавание:', e);
+            alert('Ошибка запуска микрофона. Попробуйте перезагрузить страницу.');
+        }
+    }
+
+    function handleTextInput() {
+    const inputField = document.getElementById('text-input');
+    const text = inputField.value.trim().toLowerCase();
+    
+    if (text) {
+        console.log('Текстовый ввод:', text);
+        processCommand(text);
+        inputField.value = '';
+    }
+}
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const inputField = document.getElementById('text-input');
+        if (inputField) {
+            inputField.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    handleTextInput();
+                }
+            });
+        }
+    });
+
+    function processCommand(text) {
+        if (text.includes('рыцарь') || text.includes('танк')) {
+            explainArchetype('knight', 'Рыцарь-танк имеет массивный силуэт и тяжелую броню для высокой выживаемости.');
+        } else if (text.includes('лучник') || text.includes('дальнобойщик')) {
+            explainArchetype('archer', 'Лучник обладает легким силуэтом для мобильности и нанесения урона с дистанции.');
+        } else if (text.includes('маг') || text.includes('саппорт')) {
+            explainArchetype('mage', 'Маг способен использовать заклинания и магию для атаки противников и поддержки союзников.');
+        } else if (text.includes('ассасин') || text.includes('близнец')) {
+            explainArchetype('assassin', 'Ассасин выделяется своей скрытностью и ловкостью.');
+        } else if (text.includes('берсерк') || text.includes('берзерк')) {
+            explainArchetype('berserk', 'Берзерк имеет массивный силуэт и тяжёлое оружие для огромного ближнего урона.');
+        } else {
+            speakText('Я не понял вопрос. Спросите про рыцаря, лучника, мага, ассасина или берзерка.');
+        }
+    }
+</script>
+</body>
+
+</html>
